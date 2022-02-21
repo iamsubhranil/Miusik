@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { Client, Intents } = require("discord.js");
+const { Client, Intents, MessageEmbed } = require("discord.js");
 const client = new Client({
     intents: [
         Intents.FLAGS.GUILDS,
@@ -8,6 +8,30 @@ const client = new Client({
         Intents.FLAGS.GUILD_VOICE_STATES,
     ],
 });
+
+function nowPlayingMessage(song) {
+    return {
+        embeds: [
+            new MessageEmbed()
+                .setColor("#0099ff")
+                .setTitle("Now playing")
+                .setURL(song.url)
+                .setImage(song.thumbnail)
+                .setDescription(song.name),
+        ],
+    };
+}
+
+function errorMessage(msg) {
+    return {
+        embeds: [
+            new MessageEmbed()
+                .setColor("#ff0000")
+                .setTitle("Error")
+                .setDescription(msg),
+        ],
+    };
+}
 
 const { Player } = require("discord-music-player");
 const player = new Player(client, {
@@ -17,12 +41,12 @@ client.player = player;
 client.channel = null;
 player.on("songFirst", (queue, newSong) => {
     if (client.channel) {
-        client.channel.send("Now playing: " + newSong.name);
+        client.channel.send(nowPlayingMessage(newSong));
     }
 });
 player.on("songChanged", (queue, newSong, oldSong) => {
     if (client.channel) {
-        client.channel.send("Now playing: " + newSong.name);
+        client.channel.send(nowPlayingMessage(newSong));
     }
 });
 
@@ -30,11 +54,12 @@ client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
+const REPLY_CHANNEL = "miusikchannel";
+
 client.on("interactionCreate", async (interaction) => {
     if (!interaction.isCommand()) return;
-    // if (interaction.commandName === 'ping') {
+
     const channel = interaction.member.voice.channel;
-    client.channel = interaction.channel;
     if (!channel) {
         await interaction.reply("Join a voice channel before playing!");
     } else {
@@ -42,16 +67,46 @@ client.on("interactionCreate", async (interaction) => {
         const cmd = interaction.commandName;
         if (cmd == "p") {
             song = interaction.options.getString("song");
-            console.log(song);
+            console.log("[Queued]: " + song);
             if (song) {
                 interaction.reply("Queued: " + song);
-                if (!guildQueue)
+                if (!guildQueue) {
                     guildQueue = client.player.createQueue(interaction.guildId);
+                    if (!client.channel) {
+                        client.channel = interaction.guild.channels.cache.find(
+                            (c) => c.name == REPLY_CHANNEL
+                        );
+                    }
+                    if (!client.channel) {
+                        try {
+                            client.channel =
+                                await interaction.guild.channels.create(
+                                    REPLY_CHANNEL,
+                                    {
+                                        type: "GUILD_TEXT",
+                                    }
+                                );
+                        } catch (e) {
+                            interaction.channel.send(
+                                "Create a text channel with name " +
+                                    REPLY_CHANNEL +
+                                    " to interact with the bot."
+                            );
+                        }
+                    }
+                }
                 await guildQueue.join(channel);
-                guildQueue.play(song).catch((e) => {
-                    client.channel.send("Error Occurred: " + e);
-                    guildQueue.stop();
-                });
+                if (song.includes("playlist") || song.includes("album")) {
+                    guildQueue.playlist(song).catch((e) => {
+                        client.channel.send(errorMessage(e));
+                        guildQueue.stop();
+                    });
+                } else {
+                    guildQueue.play(song).catch((e) => {
+                        client.channel.send(errorMessage(e));
+                        guildQueue.stop();
+                    });
+                }
             } else if (guildQueue && guildQueue.paused) {
                 interaction.reply("Playback resumed!");
                 guildQueue.setPaused(false);
@@ -76,12 +131,11 @@ client.on("interactionCreate", async (interaction) => {
             if (!guildQueue) {
                 interaction.reply("No songs in queue!");
             } else {
-                console.log(guildQueue);
                 var songs = "";
                 var i = 1;
                 for (s of guildQueue.songs) {
-                    if (s == guildQueue.currentlyPlaying) {
-                        songs += "** -> " + i + ". " + s.name + "**\n";
+                    if (s.url === guildQueue.currentlyPlaying.url) {
+                        songs += "*** -> " + i + ". " + s.name + "***\n";
                     } else songs += i + ". " + s.name + "\n";
                     i++;
                 }
@@ -96,7 +150,6 @@ client.on("interactionCreate", async (interaction) => {
             }
         }
     }
-    // }
 });
 
 client.login(process.env.TOKEN);
