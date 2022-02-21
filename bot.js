@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+const { COMMANDS } = require("./deploy_commands.js");
+
 const { Client, Intents, MessageEmbed } = require("discord.js");
 const client = new Client({
     intents: [
@@ -66,10 +68,10 @@ client.on("interactionCreate", async (interaction) => {
         let guildQueue = client.player.getQueue(interaction.guildId);
         const cmd = interaction.commandName;
         if (cmd == "p") {
-            song = interaction.options.getString("song");
+            var song = interaction.options.getString("song");
             console.log("[Queued]: " + song);
             if (song) {
-                interaction.reply("Queued: " + song);
+                interaction.reply("Queued: **" + song + "**");
                 if (!guildQueue) {
                     guildQueue = client.player.createQueue(interaction.guildId);
                     if (!client.channel) {
@@ -99,12 +101,10 @@ client.on("interactionCreate", async (interaction) => {
                 if (song.includes("playlist") || song.includes("album")) {
                     guildQueue.playlist(song).catch((e) => {
                         client.channel.send(errorMessage(e));
-                        guildQueue.stop();
                     });
                 } else {
                     guildQueue.play(song).catch((e) => {
                         client.channel.send(errorMessage(e));
-                        guildQueue.stop();
                     });
                 }
             } else if (guildQueue && guildQueue.paused) {
@@ -125,19 +125,25 @@ client.on("interactionCreate", async (interaction) => {
                 guildQueue.setPaused(true);
                 interaction.reply("Music paused!");
             } else {
-                interaction.reply("Music is not playing!");
+                interaction.reply("No music playing!");
             }
-        } else if (cmd == "v") {
+        } else if (cmd == "q") {
             if (!guildQueue) {
                 interaction.reply("No songs in queue!");
             } else {
-                var songs = "";
+                var songs = "Current queue:\n";
                 var i = 1;
                 for (s of guildQueue.songs) {
-                    if (s.url === guildQueue.currentlyPlaying.url) {
-                        songs += "*** -> " + i + ". " + s.name + "***\n";
+                    if (
+                        guildQueue.nowPlaying &&
+                        s.url === guildQueue.nowPlaying.url
+                    ) {
+                        songs += "**" + i + ". " + s.name + "**\n";
                     } else songs += i + ". " + s.name + "\n";
                     i++;
+                }
+                if (i == 1) {
+                    songs = "No songs in queue!";
                 }
                 interaction.reply(songs);
             }
@@ -148,6 +154,24 @@ client.on("interactionCreate", async (interaction) => {
             } else {
                 interaction.reply("No music is playing!");
             }
+        } else if (cmd == "f") {
+            if (!guildQueue || !guildQueue.nowPlaying) {
+                interaction.reply("No music is playing!");
+            } else {
+                var amount = interaction.options.getInteger("seconds");
+                if (!amount) {
+                    amount = 10;
+                }
+                guildQueue.seek(guildQueue.nowPlaying.seekTime + amount);
+                interaction.reply("Seeked by " + amount + " seconds!");
+            }
+        } else if (cmd == "h") {
+            var usage =
+                "Use / to bring up the command menu, then choose one of the following:\n";
+            for (var c of COMMANDS) {
+                usage += c[0] + ": " + c[1] + "\n";
+            }
+            interaction.reply(usage);
         }
     }
 });
