@@ -2,7 +2,12 @@ require("dotenv").config();
 
 const { COMMANDS } = require("./deploy_commands.js");
 
-const { Client, Intents, MessageEmbed } = require("discord.js");
+const {
+    Client,
+    Intents,
+    MessageEmbed,
+    EmbedAuthorData,
+} = require("discord.js");
 const client = new Client({
     intents: [
         Intents.FLAGS.GUILDS,
@@ -12,15 +17,24 @@ const client = new Client({
 });
 
 function nowPlayingMessage(song) {
+    var m = new MessageEmbed()
+        .setColor("#0099ff")
+        .setTitle("Now playing")
+        .setURL(song.url)
+        .setImage(song.thumbnail)
+        .setDescription(song.name)
+        .addField("Duration", song.duration, true);
+    if (song.data) {
+        m.addField("Requested by", song.data, true);
+    }
+    if (song.queue.songs.length > 1) {
+        m.setFooter({
+            text: "Up next: " + song.queue.songs[1].name,
+            iconURL: song.queue.songs[1].thumbnail,
+        });
+    }
     return {
-        embeds: [
-            new MessageEmbed()
-                .setColor("#0099ff")
-                .setTitle("Now playing")
-                .setURL(song.url)
-                .setImage(song.thumbnail)
-                .setDescription(song.name),
-        ],
+        embeds: [m],
     };
 }
 
@@ -103,9 +117,15 @@ client.on("interactionCreate", async (interaction) => {
                         client.channel.send(errorMessage(e));
                     });
                 } else {
-                    guildQueue.play(song).catch((e) => {
-                        client.channel.send(errorMessage(e));
-                    });
+                    var user = interaction.member.user.username;
+                    guildQueue
+                        .play(song)
+                        .then((s) => {
+                            s.data = user;
+                        })
+                        .catch((e) => {
+                            client.channel.send(errorMessage(e));
+                        });
                 }
             } else if (guildQueue && guildQueue.paused) {
                 interaction.reply("Playback resumed!");
