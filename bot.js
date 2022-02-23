@@ -11,7 +11,7 @@ if(process.env.HEROKU) {
     }
 
     const server = http.createServer(requestListener);
-    server.listen(8080);
+    server.listen(process.env.PORT);
 
 }
 
