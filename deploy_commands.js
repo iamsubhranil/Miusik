@@ -18,6 +18,8 @@ const COMMANDS = [
         false,
         "int",
     ],
+    ["r", "Toggles 'repeat' for the current song"],
+    ["rq", "Toggles 'repeat' for the current queue"],
     ["h", "Shows the command help"],
 ];
 

@@ -2,17 +2,18 @@ require("dotenv").config();
 
 // bind to a port if we're running on heroku, otherwise we're gonna
 // get killed
-if(process.env.HEROKU) {
-    const http = require('http');
+if (process.env.HEROKU) {
+    const http = require("http");
 
     const requestListener = function (req, res) {
-    res.writeHead(200);
-        res.end('Hi there! Glad you visited the website, but unfortunately it does not have a frontend right now!');
-    }
+        res.writeHead(200);
+        res.end(
+            "Hi there! Glad you visited the website, but unfortunately it does not have a frontend right now!"
+        );
+    };
 
     const server = http.createServer(requestListener);
     server.listen(process.env.PORT);
-
 }
 
 const { COMMANDS } = require("./deploy_commands.js");
@@ -64,7 +65,7 @@ function errorMessage(msg) {
     };
 }
 
-const { Player } = require("discord-music-player");
+const { Player, RepeatMode } = require("discord-music-player");
 const player = new Player(client, {
     leaveOnEmpty: false,
 });
@@ -166,14 +167,22 @@ client.on("interactionCreate", async (interaction) => {
             if (!guildQueue) {
                 interaction.reply("No songs in queue!");
             } else {
-                var songs = "Current queue:\n";
+                var songs = "Current queue";
+                if (guildQueue.repeatMode == RepeatMode.QUEUE) {
+                    songs += " (on repeat)";
+                }
+                songs += ":\n";
                 var i = 1;
                 for (s of guildQueue.songs) {
                     if (
                         guildQueue.nowPlaying &&
                         s.url === guildQueue.nowPlaying.url
                     ) {
-                        songs += "**" + i + ". " + s.name + "**\n";
+                        songs += "**" + i + ". " + s.name + "**";
+                        if (guildQueue.repeatMode == RepeatMode.SONG) {
+                            songs += " (on repeat)";
+                        }
+                        songs += "\n";
                     } else songs += i + ". " + s.name + "\n";
                     i++;
                 }
@@ -207,6 +216,24 @@ client.on("interactionCreate", async (interaction) => {
                 usage += c[0] + ": " + c[1] + "\n";
             }
             interaction.reply(usage);
+        } else if (cmd == "r" || cmd == "rq") {
+            if (!guildQueue || !guildQueue.nowPlaying) {
+                interaction.reply("No music is playing!");
+            } else {
+                var setTo = RepeatMode.SONG;
+                var setToStr = "current song";
+                if (cmd == "rq") {
+                    setTo = RepeatMode.QUEUE;
+                    setToStr = "current queue";
+                }
+                if (guildQueue.repeatMode != setTo) {
+                    guildQueue.setRepeatMode(setTo);
+                    interaction.reply("Repeat mode set to " + setToStr + "!");
+                } else {
+                    guildQueue.setRepeatMode(RepeatMode.DISABLED);
+                    interaction.reply("Repeat mode disabled!");
+                }
+            }
         }
     }
 });
