@@ -17,13 +17,9 @@ if (process.env.HEROKU) {
 }
 
 const { COMMANDS } = require("./deploy_commands.js");
+const { checkForUpdates } = require("./updater.js");
 
-const {
-    Client,
-    Intents,
-    MessageEmbed,
-    EmbedAuthorData,
-} = require("discord.js");
+const { Client, Intents, MessageEmbed } = require("discord.js");
 const client = new Client({
     intents: [
         Intents.FLAGS.GUILDS,
@@ -92,6 +88,12 @@ player.on("songChanged", (queue, newSong, oldSong) => {
 
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
+    client.guilds.cache.forEach((guild) => {
+        const ch = guild.channels.cache.find((c) => c.name == REPLY_CHANNEL);
+        if (ch) {
+            ch.send("Miusik is now online!");
+        }
+    });
 });
 
 const REPLY_CHANNEL = "miusikchannel";
@@ -102,11 +104,14 @@ client.on("interactionCreate", async (interaction) => {
     if (!interaction.isCommand()) return;
 
     const channel = interaction.member.voice.channel;
-    if (!channel) {
+    const cmd = interaction.commandName;
+    if (cmd == "update") {
+        interaction.reply("Miusik will now check for updates!");
+        checkForUpdates(client.channel);
+    } else if (!channel) {
         await interaction.reply("Join a voice channel before playing!");
     } else {
         let guildQueue = client.player.getQueue(interaction.guildId);
-        const cmd = interaction.commandName;
         if (cmd == "p") {
             var song = interaction.options.getString("song");
             console.log("[Queued]: " + song);

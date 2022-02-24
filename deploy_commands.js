@@ -20,6 +20,7 @@ const COMMANDS = [
     ],
     ["r", "Toggles 'repeat' for the current song"],
     ["rq", "Toggles 'repeat' for the current queue"],
+    ["update", "Updates the bot"],
     ["h", "Shows the command help"],
 ];
 
