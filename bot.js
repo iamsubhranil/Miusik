@@ -65,6 +65,14 @@ function errorMessage(msg) {
     };
 }
 
+var CURRENTDATE = new Date();
+
+function updateDate() {
+    CURRENTDATE = new Date();
+}
+// update current date every one hour (good enough for now)
+setInterval(updateDate, 1000 * 60 * 60);
+
 const { Player, RepeatMode } = require("discord-music-player");
 const player = new Player(client, {
     leaveOnEmpty: false,
@@ -87,6 +95,8 @@ client.on("ready", () => {
 });
 
 const REPLY_CHANNEL = "miusikchannel";
+var songCache = {};
+const CACHE_EXPIRE_MILLS = 1000 * 60 * 60 * 24 * 7;
 
 client.on("interactionCreate", async (interaction) => {
     if (!interaction.isCommand()) return;
@@ -101,7 +111,6 @@ client.on("interactionCreate", async (interaction) => {
             var song = interaction.options.getString("song");
             console.log("[Queued]: " + song);
             if (song) {
-                interaction.reply("Queued: **" + song + "**");
                 if (!guildQueue) {
                     guildQueue = client.player.createQueue(interaction.guildId);
                     if (!client.channel) {
@@ -129,14 +138,30 @@ client.on("interactionCreate", async (interaction) => {
                 }
                 await guildQueue.join(channel);
                 if (song.includes("playlist") || song.includes("album")) {
+                    interaction.reply("Queued: **" + song + "**");
                     guildQueue.playlist(song).catch((e) => {
                         client.channel.send(errorMessage(e));
                     });
                 } else {
                     var user = interaction.member.user.username;
+                    if (
+                        song in songCache &&
+                        CURRENTDATE - songCache[song].date < CACHE_EXPIRE_MILLS
+                    ) {
+                        song = songCache[song].cachedSong;
+                        interaction.reply("Queued: **" + song.name + "**");
+                    } else {
+                        interaction.reply("Queued: **" + song + "**");
+                    }
                     guildQueue
                         .play(song)
                         .then((s) => {
+                            if (s != song) {
+                                songCache[song] = {
+                                    cachedSong: s,
+                                    date: CURRENTDATE,
+                                };
+                            }
                             s.data = user;
                         })
                         .catch((e) => {
