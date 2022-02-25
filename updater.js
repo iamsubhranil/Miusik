@@ -73,7 +73,7 @@ function checkForUpdates(channel = null) {
                     return;
                 }
                 if (channel) {
-                    channel.send("Update fetch complete!");
+                    channel.send("Update fetch successful!");
                 }
                 console.log("git pull successful:\n" + stdout);
                 exec("npm install", (err, stdout, stderr) => {
