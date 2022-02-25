@@ -158,16 +158,19 @@ async function checkForUpdates(channel = null) {
                                 );
                             }
                             console.log("Changelog:\n" + stdout);
+
+                            if (channel) {
+                                await channel.send(
+                                    "Miusik is now restarting.."
+                                );
+                            }
+                            console.log("Restarting..");
+                            // here we assume we are running on top of a daemon
+                            // which will take care of restarting us
+                            process.exit(0);
                         }
                     );
                 });
-                if (channel) {
-                    await channel.send("Miusik is now restarting..");
-                }
-                console.log("Restarting..");
-                // here we assume we are running on top of a daemon
-                // which will take care of restarting us
-                process.exit(0);
             });
         });
     });
