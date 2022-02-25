@@ -1,12 +1,12 @@
 const { exec } = require("child_process");
 
-function checkForUpdates(channel = null) {
+async function checkForUpdates(channel = null) {
     if (channel) {
         await channel.send("Checking for updates..");
     }
     console.log("Checking for updates..");
 
-    exec("git log --pretty=format:'%H' -n 1", (err, stdout, stderr) => {
+    exec("git log --pretty=format:'%H' -n 1", async (err, stdout, stderr) => {
         if (err) {
             if (channel)
                 channel.send(
@@ -24,7 +24,7 @@ function checkForUpdates(channel = null) {
         }
         console.log("Latest local commit: " + stdout);
         const local = stdout;
-        exec("git ls-remote origin HEAD", (err, stdout, stderr) => {
+        exec("git ls-remote origin HEAD", async (err, stdout, stderr) => {
             if (err) {
                 if (channel)
                     await channel.send(
@@ -57,7 +57,7 @@ function checkForUpdates(channel = null) {
             console.log("New update found!");
             console.log("Updating from remote..");
 
-            exec("git pull", (err, stdout, stderr) => {
+            exec("git pull", async (err, stdout, stderr) => {
                 if (err) {
                     if (channel) {
                         channel.send("Update failed!");
@@ -76,7 +76,7 @@ function checkForUpdates(channel = null) {
                     await channel.send("Update fetch successful!");
                 }
                 console.log("git pull successful:\n" + stdout);
-                exec("npm install", (err, stdout, stderr) => {
+                exec("npm install", async (err, stdout, stderr) => {
                     if (err) {
                         if (channel) {
                             await channel.send("Update install failed!");
@@ -94,7 +94,7 @@ function checkForUpdates(channel = null) {
                         );
                         exec(
                             "git reset --hard " + local,
-                            (err, stdout, stderr) => {
+                            async (err, stdout, stderr) => {
                                 if (err) {
                                     if (channel) {
                                         await channel.send("Reverting failed!");
@@ -140,7 +140,7 @@ function checkForUpdates(channel = null) {
                             ".." +
                             remote +
                             " --oneline --no-color",
-                        (err, stdout, stderr) => {
+                        async (err, stdout, stderr) => {
                             if (err) {
                                 console.log(
                                     "Unable to show changelog: ",
