@@ -60,9 +60,9 @@ slashCommands.map((command) => command.toJSON());
 
 const rest = new REST({ version: "9" }).setToken(process.env.TOKEN);
 
-process.env.GUILD_IDS = process.env.GUILD_IDS.split(",").map((id) => id.trim());
+const guildIds = process.env.GUILD_IDS.split(",").map((id) => id.trim());
 
-for (var id of process.env.GUILD_IDS) {
+for (var id of guildIds) {
     rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, id), {
         body: slashCommands,
     })
