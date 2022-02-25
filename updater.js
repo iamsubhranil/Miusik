@@ -2,7 +2,7 @@ const { exec } = require("child_process");
 
 function checkForUpdates(channel = null) {
     if (channel) {
-        channel.send("Checking for updates..");
+        await channel.send("Checking for updates..");
     }
     console.log("Checking for updates..");
 
@@ -27,7 +27,7 @@ function checkForUpdates(channel = null) {
         exec("git ls-remote origin HEAD", (err, stdout, stderr) => {
             if (err) {
                 if (channel)
-                    channel.send(
+                    await channel.send(
                         "Check for updates failed: Could not check remote version!"
                     );
                 console.log(
@@ -47,12 +47,12 @@ function checkForUpdates(channel = null) {
                 console.log("Already up to date!");
 
                 if (channel) {
-                    channel.send("Miusik is already up to date!");
+                    await channel.send("Miusik is already up to date!");
                 }
                 return;
             }
             if (channel) {
-                channel.send("New update found, updating now..");
+                await channel.send("New update found, updating now..");
             }
             console.log("New update found!");
             console.log("Updating from remote..");
@@ -73,14 +73,16 @@ function checkForUpdates(channel = null) {
                     return;
                 }
                 if (channel) {
-                    channel.send("Update fetch successful!");
+                    await channel.send("Update fetch successful!");
                 }
                 console.log("git pull successful:\n" + stdout);
                 exec("npm install", (err, stdout, stderr) => {
                     if (err) {
                         if (channel) {
-                            channel.send("Update install failed!");
-                            channel.send("Reverting back to the old version..");
+                            await channel.send("Update install failed!");
+                            await channel.send(
+                                "Reverting back to the old version.."
+                            );
                         }
                         console.log(
                             "npm install failed: ",
@@ -95,11 +97,11 @@ function checkForUpdates(channel = null) {
                             (err, stdout, stderr) => {
                                 if (err) {
                                     if (channel) {
-                                        channel.send("Reverting failed!");
-                                        channel.send(
+                                        await channel.send("Reverting failed!");
+                                        await channel.send(
                                             "The bot is now in an inconsistent state!"
                                         );
-                                        channel.send(
+                                        await channel.send(
                                             "Please inform the owner to manually fix this!"
                                         );
                                     }
@@ -114,8 +116,12 @@ function checkForUpdates(channel = null) {
                                     return;
                                 }
                                 if (channel) {
-                                    channel.send("Update rollback complete!");
-                                    channel.send("Miusik is now restarting..");
+                                    await channel.send(
+                                        "Update rollback complete!"
+                                    );
+                                    await channel.send(
+                                        "Miusik is now restarting.."
+                                    );
                                 }
                                 console.log("git reset successful:\n" + stdout);
                                 console.log("Restarting..");
@@ -125,7 +131,7 @@ function checkForUpdates(channel = null) {
                         return;
                     }
                     if (channel) {
-                        channel.send("Update install complete!");
+                        await channel.send("Update install complete!");
                     }
                     console.log("npm install successful:\n" + stdout);
                     exec(
@@ -147,7 +153,7 @@ function checkForUpdates(channel = null) {
                                 return;
                             }
                             if (channel) {
-                                channel.send(
+                                await channel.send(
                                     "Changelog:\n```" + stdout + "```"
                                 );
                             }
@@ -156,7 +162,7 @@ function checkForUpdates(channel = null) {
                     );
                 });
                 if (channel) {
-                    channel.send("Miusik is now restarting..");
+                    await channel.send("Miusik is now restarting..");
                 }
                 console.log("Restarting..");
                 // here we assume we are running on top of a daemon
