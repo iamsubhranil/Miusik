@@ -60,12 +60,14 @@ slashCommands.map((command) => command.toJSON());
 
 const rest = new REST({ version: "9" }).setToken(process.env.TOKEN);
 
-rest.put(
-    Routes.applicationGuildCommands(
-        process.env.CLIENT_ID,
-        process.env.GUILD_ID
-    ),
-    { body: slashCommands }
-)
-    .then(() => console.log("Successfully registered application commands."))
-    .catch(console.error);
+process.env.GUILD_IDS = process.env.GUILD_IDS.split(",").map((id) => id.trim());
+
+for (var id of process.env.GUILD_IDS) {
+    rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, id), {
+        body: slashCommands,
+    })
+        .then(() =>
+            console.log("Successfully registered application commands.")
+        )
+        .catch(console.error);
+}

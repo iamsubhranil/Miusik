@@ -3,7 +3,7 @@ Create a .env file in the parent folder with the following items:
 ```
 TOKEN=<your bot token>
 CLIENT_ID=<your application client id>
-GUILD_ID=<id of the server you want to connect>
+GUILD_IDS=<comma separated ids of the servers you want to connect>
 ```
 
 Install the dependencies:
