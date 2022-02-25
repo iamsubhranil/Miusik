@@ -74,15 +74,17 @@ const player = new Player(client, {
     leaveOnEmpty: false,
 });
 client.player = player;
-client.channel = null;
+client.infoChannel = {};
 player.on("songFirst", (queue, newSong) => {
-    if (client.channel) {
-        client.channel.send(nowPlayingMessage(newSong));
+    const guildId = newSong.queue.guild.id;
+    if (client.infoChannel[guildId]) {
+        client.infoChannel[guildId].send(nowPlayingMessage(newSong));
     }
 });
 player.on("songChanged", (queue, newSong, oldSong) => {
-    if (client.channel) {
-        client.channel.send(nowPlayingMessage(newSong));
+    const guildId = newSong.queue.guild.id;
+    if (client.infoChannel[guildId]) {
+        client.infoChannel[guildId].send(nowPlayingMessage(newSong));
     }
 });
 
@@ -91,6 +93,7 @@ client.on("ready", () => {
     client.guilds.cache.forEach((guild) => {
         const ch = guild.channels.cache.find((c) => c.name == REPLY_CHANNEL);
         if (ch) {
+            client.infoChannel[guild.id] = ch;
             ch.send("Miusik is now online!");
         }
     });
@@ -107,7 +110,7 @@ client.on("interactionCreate", async (interaction) => {
     const cmd = interaction.commandName;
     if (cmd == "update") {
         interaction.reply("Miusik will now check for updates!");
-        checkForUpdates(client.channel);
+        await checkForUpdates(client.infoChannel[interaction.guildId]);
     } else if (!channel) {
         await interaction.reply("Join a voice channel before playing!");
     } else {
@@ -118,14 +121,9 @@ client.on("interactionCreate", async (interaction) => {
             if (song) {
                 if (!guildQueue) {
                     guildQueue = client.player.createQueue(interaction.guildId);
-                    if (!client.channel) {
-                        client.channel = interaction.guild.channels.cache.find(
-                            (c) => c.name == REPLY_CHANNEL
-                        );
-                    }
-                    if (!client.channel) {
+                    if (!client.infoChannel[interaction.guildId]) {
                         try {
-                            client.channel =
+                            client.infoChannel[interaction.guildId] =
                                 await interaction.guild.channels.create(
                                     REPLY_CHANNEL,
                                     {
@@ -145,7 +143,9 @@ client.on("interactionCreate", async (interaction) => {
                 if (song.includes("playlist") || song.includes("album")) {
                     interaction.reply("Queued: **" + song + "**");
                     guildQueue.playlist(song).catch((e) => {
-                        client.channel.send(errorMessage(e));
+                        client.infoChannel[interaction.guildId].send(
+                            errorMessage(e)
+                        );
                     });
                 } else {
                     var user = interaction.member.user.username;
@@ -170,7 +170,9 @@ client.on("interactionCreate", async (interaction) => {
                             s.data = user;
                         })
                         .catch((e) => {
-                            client.channel.send(errorMessage(e));
+                            client.infoChannel[interaction.guildId].send(
+                                errorMessage(e)
+                            );
                         });
                 }
             } else if (guildQueue && guildQueue.paused) {
