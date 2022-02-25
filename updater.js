@@ -7,23 +7,37 @@ function checkForUpdates(channel = null) {
     console.log("Checking for updates..");
 
     exec("git log --pretty=format:'%H' -n 1", (err, stdout, stderr) => {
-        if (err || stderr) {
+        if (err) {
             if (channel)
                 channel.send(
                     "Check for updates failed: Could not check current version!"
                 );
-            console.log("Error checking current version: ", err || stderr);
+            console.log(
+                "Error checking current version: ",
+                err,
+                "\n",
+                stderr,
+                "\n",
+                stdout
+            );
             return;
         }
         console.log("Latest local commit: " + stdout);
         const local = stdout;
         exec("git ls-remote origin HEAD", (err, stdout, stderr) => {
-            if (err || stderr) {
+            if (err) {
                 if (channel)
                     channel.send(
                         "Check for updates failed: Could not check remote version!"
                     );
-                console.log("Error checking for updates: ", err || stderr);
+                console.log(
+                    "Error checking for updates: ",
+                    err,
+                    "\n",
+                    stderr,
+                    "\n",
+                    stdout
+                );
                 return;
             }
             const remote = stdout.split("\t")[0];
@@ -44,13 +58,17 @@ function checkForUpdates(channel = null) {
             console.log("Updating from remote..");
 
             exec("git pull", (err, stdout, stderr) => {
-                if (err || stderr) {
+                if (err) {
                     if (channel) {
                         channel.send("Update failed!");
                     }
                     console.log(
                         "Error updating to the remote: ",
-                        err || stderr
+                        err,
+                        "\n",
+                        stderr,
+                        "\n",
+                        stdout
                     );
                     return;
                 }
@@ -59,16 +77,23 @@ function checkForUpdates(channel = null) {
                 }
                 console.log("git pull successful:\n" + stdout);
                 exec("npm install", (err, stdout, stderr) => {
-                    if (err || stderr) {
+                    if (err) {
                         if (channel) {
                             channel.send("Update install failed!");
                             channel.send("Reverting back to the old version..");
                         }
-                        console.log("npm install failed: ", err || stderr);
+                        console.log(
+                            "npm install failed: ",
+                            err,
+                            "\n",
+                            stderr,
+                            "\n",
+                            stdout
+                        );
                         exec(
                             "git reset --hard " + local,
                             (err, stdout, stderr) => {
-                                if (err || stderr) {
+                                if (err) {
                                     if (channel) {
                                         channel.send("Reverting failed!");
                                         channel.send(
@@ -80,7 +105,11 @@ function checkForUpdates(channel = null) {
                                     }
                                     console.log(
                                         "Git reset failed: ",
-                                        err || stderr
+                                        err,
+                                        "\n",
+                                        stderr,
+                                        "\n",
+                                        stdout
                                     );
                                     return;
                                 }
@@ -106,10 +135,14 @@ function checkForUpdates(channel = null) {
                             remote +
                             " --oneline --no-color",
                         (err, stdout, stderr) => {
-                            if (err || stderr) {
+                            if (err) {
                                 console.log(
                                     "Unable to show changelog: ",
-                                    err || stderr
+                                    err,
+                                    "\n",
+                                    stderr,
+                                    "\n",
+                                    stdout
                                 );
                                 return;
                             }
