@@ -1,10 +1,23 @@
+module.exports = {
+    command: "update",
+    description: "Updates the bot",
+    commandModifier: null,
+    handler: executeUpdate,
+    requiresOnChannel: false,
+};
 const { exec } = require("child_process");
 
-async function checkForUpdates(channel = null) {
+async function executeUpdate(
+    interaction,
+    player,
+    guildQueue,
+    infoChannel,
+    logger
+) {
     if (channel) {
         await channel.send("Checking for updates..");
     }
-    console.log("Checking for updates..");
+    logger.log("Checking for updates..");
 
     exec("git log --pretty=format:'%H' -n 1", async (err, stdout, stderr) => {
         if (err) {
@@ -12,7 +25,7 @@ async function checkForUpdates(channel = null) {
                 channel.send(
                     "Check for updates failed: Could not check current version!"
                 );
-            console.log(
+            logger.log(
                 "Error checking current version: ",
                 err,
                 "\n",
@@ -22,7 +35,7 @@ async function checkForUpdates(channel = null) {
             );
             return;
         }
-        console.log("Latest local commit: " + stdout);
+        logger.log("Latest local commit: " + stdout);
         const local = stdout;
         exec("git ls-remote origin HEAD", async (err, stdout, stderr) => {
             if (err) {
@@ -30,7 +43,7 @@ async function checkForUpdates(channel = null) {
                     await channel.send(
                         "Check for updates failed: Could not check remote version!"
                     );
-                console.log(
+                logger.log(
                     "Error checking for updates: ",
                     err,
                     "\n",
@@ -41,10 +54,10 @@ async function checkForUpdates(channel = null) {
                 return;
             }
             const remote = stdout.split("\t")[0];
-            console.log("Latest remote commit: " + remote);
+            logger.log("Latest remote commit: " + remote);
 
             if (local === remote) {
-                console.log("Already up to date!");
+                logger.log("Already up to date!");
 
                 if (channel) {
                     await channel.send("Miusik is already up to date!");
@@ -54,15 +67,15 @@ async function checkForUpdates(channel = null) {
             if (channel) {
                 await channel.send("New update found, updating now..");
             }
-            console.log("New update found!");
-            console.log("Updating from remote..");
+            logger.log("New update found!");
+            logger.log("Updating from remote..");
 
             exec("git pull", async (err, stdout, stderr) => {
                 if (err) {
                     if (channel) {
                         channel.send("Update failed!");
                     }
-                    console.log(
+                    logger.log(
                         "Error updating to the remote: ",
                         err,
                         "\n",
@@ -75,7 +88,7 @@ async function checkForUpdates(channel = null) {
                 if (channel) {
                     await channel.send("Update fetch successful!");
                 }
-                console.log("git pull successful:\n" + stdout);
+                logger.log("git pull successful:\n" + stdout);
                 exec("npm install", async (err, stdout, stderr) => {
                     if (err) {
                         if (channel) {
@@ -84,7 +97,7 @@ async function checkForUpdates(channel = null) {
                                 "Reverting back to the old version.."
                             );
                         }
-                        console.log(
+                        logger.log(
                             "npm install failed: ",
                             err,
                             "\n",
@@ -105,7 +118,7 @@ async function checkForUpdates(channel = null) {
                                             "Please inform the owner to manually fix this!"
                                         );
                                     }
-                                    console.log(
+                                    logger.log(
                                         "Git reset failed: ",
                                         err,
                                         "\n",
@@ -123,8 +136,8 @@ async function checkForUpdates(channel = null) {
                                         "Miusik is now restarting.."
                                     );
                                 }
-                                console.log("git reset successful:\n" + stdout);
-                                console.log("Restarting..");
+                                logger.log("git reset successful:\n" + stdout);
+                                logger.log("Restarting..");
                                 process.exit(0);
                             }
                         );
@@ -133,7 +146,7 @@ async function checkForUpdates(channel = null) {
                     if (channel) {
                         await channel.send("Update install complete!");
                     }
-                    console.log("npm install successful:\n" + stdout);
+                    logger.log("npm install successful:\n" + stdout);
                     exec(
                         "git shortlog " +
                             local +
@@ -142,7 +155,7 @@ async function checkForUpdates(channel = null) {
                             " --oneline --no-color",
                         async (err, stdout, stderr) => {
                             if (err) {
-                                console.log(
+                                logger.log(
                                     "Unable to show changelog: ",
                                     err,
                                     "\n",
@@ -157,14 +170,14 @@ async function checkForUpdates(channel = null) {
                                     "Changelog:\n```" + stdout + "```"
                                 );
                             }
-                            console.log("Changelog:\n" + stdout);
+                            logger.log("Changelog:\n" + stdout);
 
                             if (channel) {
                                 await channel.send(
                                     "Miusik is now restarting.."
                                 );
                             }
-                            console.log("Restarting..");
+                            logger.log("Restarting..");
                             // here we assume we are running on top of a daemon
                             // which will take care of restarting us
                             process.exit(0);
@@ -175,5 +188,3 @@ async function checkForUpdates(channel = null) {
         });
     });
 }
-
-module.exports = { checkForUpdates };

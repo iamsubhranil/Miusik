@@ -3,60 +3,33 @@ require("dotenv").config();
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const { REST } = require("@discordjs/rest");
 const { Routes } = require("discord-api-types/v9");
+const { Collection } = require("discord.js");
+const { Logger } = require("./logger.js");
+const fs = require("node:fs");
 
-const COMMANDS = [
-    ["p", "Plays a song", "song", "Song to play", false, "str"],
-    ["pp", "Pauses currently playing song"],
-    ["n", "Plays the next song in the queue"],
-    ["s", "Stops the current queue"],
-    ["q", "Shows the current queue"],
-    [
-        "f",
-        "Forwards the current song by a certain amount of seconds (default: 10)",
-        "seconds",
-        "Amount of seconds to skip forward",
-        false,
-        "int",
-    ],
-    ["r", "Toggles 'repeat' for the current song"],
-    ["rq", "Toggles 'repeat' for the current queue"],
-    ["update", "Updates the bot"],
-    ["h", "Shows the command help"],
-];
-
+var COMMANDS = new Collection();
 module.exports = {
     COMMANDS,
 };
 
-var slashCommands = [];
+const commandFiles = fs
+    .readdirSync("./cmd")
+    .filter((file) => file.endsWith(".js"));
 
-for (var c of COMMANDS) {
-    if (c.length == 6) {
-        if (c[5] == "str") {
-            var cmd = new SlashCommandBuilder()
-                .setName(c[0])
-                .setDescription(c[1])
-                .addStringOption((opt) =>
-                    opt.setName(c[2]).setDescription(c[3]).setRequired(c[4])
-                );
-            slashCommands.push(cmd);
-        } else if (c[5] == "int") {
-            var cmd = new SlashCommandBuilder()
-                .setName(c[0])
-                .setDescription(c[1])
-                .addIntegerOption((opt) =>
-                    opt.setName(c[2]).setDescription(c[3]).setRequired(c[4])
-                );
-            slashCommands.push(cmd);
+var commandJSON = [];
+for (const file of commandFiles) {
+    const commandModule = require(`./cmd/${file}`);
+    if (commandModule.command) {
+        var cmd = new SlashCommandBuilder()
+            .setName(commandModule.command)
+            .setDescription(commandModule.description);
+        if (commandModule.commandModifier) {
+            cmd = commandModule.commandModifier(cmd);
         }
-    } else if (c.length == 2) {
-        slashCommands.push(
-            new SlashCommandBuilder().setName(c[0]).setDescription(c[1])
-        );
+        commandJSON.push(cmd.toJSON());
+        COMMANDS.set(commandModule.command, commandModule);
     }
 }
-
-slashCommands.map((command) => command.toJSON());
 
 const rest = new REST({ version: "9" }).setToken(process.env.TOKEN);
 
@@ -64,10 +37,10 @@ const guildIds = process.env.GUILD_IDS.split(",").map((id) => id.trim());
 
 for (var id of guildIds) {
     rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, id), {
-        body: slashCommands,
+        body: commandJSON,
     })
         .then(() =>
-            console.log("Successfully registered application commands.")
+            new Logger().info("Successfully registered application commands.")
         )
         .catch(console.error);
 }

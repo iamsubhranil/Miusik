@@ -17,9 +17,9 @@ if (process.env.HEROKU) {
 }
 
 const { COMMANDS } = require("./deploy_commands.js");
-const { checkForUpdates } = require("./updater.js");
 
 const { Client, Intents, MessageEmbed } = require("discord.js");
+const { Logger } = require("./logger.js");
 const client = new Client({
     intents: [
         Intents.FLAGS.GUILDS,
@@ -50,31 +50,14 @@ function nowPlayingMessage(song) {
     };
 }
 
-function errorMessage(msg) {
-    return {
-        embeds: [
-            new MessageEmbed()
-                .setColor("#ff0000")
-                .setTitle("Error")
-                .setDescription(msg),
-        ],
-    };
-}
-
-var CURRENTDATE = new Date();
-
-function updateDate() {
-    CURRENTDATE = new Date();
-}
-// update current date every one hour (good enough for now)
-setInterval(updateDate, 1000 * 60 * 60);
-
-const { Player, RepeatMode } = require("discord-music-player");
+const { Player } = require("discord-music-player");
 const player = new Player(client, {
     leaveOnEmpty: false,
 });
 client.player = player;
 client.infoChannel = {};
+client.logger = new Logger();
+
 player.on("songFirst", (queue, newSong) => {
     const guildId = newSong.queue.guild.id;
     if (client.infoChannel[guildId]) {
@@ -89,7 +72,7 @@ player.on("songChanged", (queue, newSong, oldSong) => {
 });
 
 client.on("ready", () => {
-    console.log(`Logged in as ${client.user.tag}!`);
+    client.logger.info(`Logged in as ${client.user.tag}!`);
     client.guilds.cache.forEach((guild) => {
         const ch = guild.channels.cache.find((c) => c.name == REPLY_CHANNEL);
         if (ch) {
@@ -100,173 +83,44 @@ client.on("ready", () => {
 });
 
 const REPLY_CHANNEL = "miusikchannel";
-var songCache = {};
-const CACHE_EXPIRE_MILLS = 1000 * 60 * 60 * 24 * 7;
 
 client.on("interactionCreate", async (interaction) => {
     if (!interaction.isCommand()) return;
 
+    const command = COMMANDS.get(interaction.commandName);
+    if (!command) {
+        interaction.reply("Command not found!");
+        command = COMMANDS.get("h");
+    }
+
     const channel = interaction.member.voice.channel;
-    const cmd = interaction.commandName;
-    if (cmd == "update") {
-        interaction.reply("Miusik will now check for updates!");
-        await checkForUpdates(client.infoChannel[interaction.guildId]);
-    } else if (!channel) {
-        await interaction.reply("Join a voice channel before playing!");
-    } else {
-        let guildQueue = client.player.getQueue(interaction.guildId);
-        if (cmd == "p") {
-            var song = interaction.options.getString("song");
-            console.log("[Queued]: " + song);
-            if (song) {
-                if (!guildQueue) {
-                    guildQueue = client.player.createQueue(interaction.guildId);
-                    if (!client.infoChannel[interaction.guildId]) {
-                        try {
-                            client.infoChannel[interaction.guildId] =
-                                await interaction.guild.channels.create(
-                                    REPLY_CHANNEL,
-                                    {
-                                        type: "GUILD_TEXT",
-                                    }
-                                );
-                        } catch (e) {
-                            interaction.channel.send(
-                                "Create a text channel with name " +
-                                    REPLY_CHANNEL +
-                                    " to interact with the bot."
-                            );
-                        }
-                    }
-                }
-                await guildQueue.join(channel);
-                if (song.includes("playlist") || song.includes("album")) {
-                    interaction.reply("Queued: **" + song + "**");
-                    guildQueue.playlist(song).catch((e) => {
-                        client.infoChannel[interaction.guildId].send(
-                            errorMessage(e)
-                        );
-                    });
-                } else {
-                    var user = interaction.member.user.username;
-                    if (
-                        song in songCache &&
-                        CURRENTDATE - songCache[song].date < CACHE_EXPIRE_MILLS
-                    ) {
-                        song = songCache[song].cachedSong;
-                        interaction.reply("Queued: **" + song.name + "**");
-                    } else {
-                        interaction.reply("Queued: **" + song + "**");
-                    }
-                    guildQueue
-                        .play(song)
-                        .then((s) => {
-                            if (s != song) {
-                                songCache[song] = {
-                                    cachedSong: s,
-                                    date: CURRENTDATE,
-                                };
-                            }
-                            s.data = user;
-                        })
-                        .catch((e) => {
-                            client.infoChannel[interaction.guildId].send(
-                                errorMessage(e)
-                            );
-                        });
-                }
-            } else if (guildQueue && guildQueue.paused) {
-                interaction.reply("Playback resumed!");
-                guildQueue.setPaused(false);
-            } else {
-                interaction.reply("Specify song to play!");
-            }
-        } else if (cmd == "s") {
-            if (guildQueue) {
-                guildQueue.stop();
-                interaction.reply("Music stopped!");
-            } else {
-                interaction.reply("No music playing!");
-            }
-        } else if (cmd == "pp") {
-            if (guildQueue && guildQueue.isPlaying) {
-                guildQueue.setPaused(true);
-                interaction.reply("Music paused!");
-            } else {
-                interaction.reply("No music playing!");
-            }
-        } else if (cmd == "q") {
-            if (!guildQueue) {
-                interaction.reply("No songs in queue!");
-            } else {
-                var songs = "Current queue";
-                if (guildQueue.repeatMode == RepeatMode.QUEUE) {
-                    songs += " (on repeat)";
-                }
-                songs += ":\n";
-                var i = 1;
-                for (s of guildQueue.songs) {
-                    if (
-                        guildQueue.nowPlaying &&
-                        s.url === guildQueue.nowPlaying.url
-                    ) {
-                        songs += "**" + i + ". " + s.name + "**";
-                        if (guildQueue.repeatMode == RepeatMode.SONG) {
-                            songs += " (on repeat)";
-                        }
-                        songs += "\n";
-                    } else songs += i + ". " + s.name + "\n";
-                    i++;
-                }
-                if (i == 1) {
-                    songs = "No songs in queue!";
-                }
-                interaction.reply(songs);
-            }
-        } else if (cmd == "n") {
-            if (guildQueue && guildQueue.isPlaying) {
-                var s = guildQueue.skip();
-                interaction.reply("Skipped: " + s.name);
-            } else {
-                interaction.reply("No music is playing!");
-            }
-        } else if (cmd == "f") {
-            if (!guildQueue || !guildQueue.nowPlaying) {
-                interaction.reply("No music is playing!");
-            } else {
-                var amount = interaction.options.getInteger("seconds");
-                if (!amount) {
-                    amount = 10;
-                }
-                guildQueue.seek(guildQueue.nowPlaying.seekTime + amount);
-                interaction.reply("Seeked by " + amount + " seconds!");
-            }
-        } else if (cmd == "h") {
-            var usage =
-                "Use / to bring up the command menu, then choose one of the following:\n";
-            for (var c of COMMANDS) {
-                usage += c[0] + ": " + c[1] + "\n";
-            }
-            interaction.reply(usage);
-        } else if (cmd == "r" || cmd == "rq") {
-            if (!guildQueue || !guildQueue.nowPlaying) {
-                interaction.reply("No music is playing!");
-            } else {
-                var setTo = RepeatMode.SONG;
-                var setToStr = "current song";
-                if (cmd == "rq") {
-                    setTo = RepeatMode.QUEUE;
-                    setToStr = "current queue";
-                }
-                if (guildQueue.repeatMode != setTo) {
-                    guildQueue.setRepeatMode(setTo);
-                    interaction.reply("Repeat mode set to " + setToStr + "!");
-                } else {
-                    guildQueue.setRepeatMode(RepeatMode.DISABLED);
-                    interaction.reply("Repeat mode disabled!");
-                }
-            }
-        }
+    if (command.requiresOnChannel && !channel) {
+        interaction.reply("Join a channel before using this command!");
+        return;
+    }
+
+    let guildQueue = client.player.getQueue(interaction.guildId);
+    let player = client.player;
+    let infoChannel = client.infoChannel[interaction.guildId];
+    if (!infoChannel) {
+        infoChannel = client.infoChannel[interaction.guilId] =
+            interaction.guild.channels.cache.find(
+                (c) => c.name == REPLY_CHANNEL
+            );
+    }
+    let logger = client.logger;
+
+    try {
+        await command.handler(
+            interaction,
+            player,
+            guildQueue,
+            infoChannel,
+            logger
+        );
+    } catch (e) {
+        client.logger.error(e);
+        interaction.reply("There was an error while executing this command!");
     }
 });
 
