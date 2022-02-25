@@ -35,28 +35,70 @@ function checkForUpdates(channel = null) {
                 if (channel) {
                     channel.send("Miusik is already up to date!");
                 }
-            } else {
-                if (channel) {
-                    channel.send("New update found, updating now..");
-                }
-                console.log("New update found!");
-                console.log("Updating from remote..");
+                return;
+            }
+            if (channel) {
+                channel.send("New update found, updating now..");
+            }
+            console.log("New update found!");
+            console.log("Updating from remote..");
 
-                exec("git pull", (err, stdout, stderr) => {
+            exec("git pull", (err, stdout, stderr) => {
+                if (err || stderr) {
+                    if (channel) {
+                        channel.send("Update failed!");
+                    }
+                    console.log(
+                        "Error updating to the remote: ",
+                        err || stderr
+                    );
+                    return;
+                }
+                if (channel) {
+                    channel.send("Update fetch complete!");
+                }
+                console.log("git pull successful:\n" + stdout);
+                exec("npm install", (err, stdout, stderr) => {
                     if (err || stderr) {
                         if (channel) {
-                            channel.send("Updating failed!");
+                            channel.send("Update install failed!");
+                            channel.send("Reverting back to the old version..");
                         }
-                        console.log(
-                            "Error updating to the remote: ",
-                            err || stderr
+                        console.log("npm install failed: ", err || stderr);
+                        exec(
+                            "git reset --hard " + local,
+                            (err, stdout, stderr) => {
+                                if (err || stderr) {
+                                    if (channel) {
+                                        channel.send("Reverting failed!");
+                                        channel.send(
+                                            "The bot is now in an inconsistent state!"
+                                        );
+                                        channel.send(
+                                            "Please inform the owner to manually fix this!"
+                                        );
+                                    }
+                                    console.log(
+                                        "Git reset failed: ",
+                                        err || stderr
+                                    );
+                                    return;
+                                }
+                                if (channel) {
+                                    channel.send("Update rollback complete!");
+                                    channel.send("Miusik is now restarting..");
+                                }
+                                console.log("git reset successful:\n" + stdout);
+                                console.log("Restarting..");
+                                process.exit(0);
+                            }
                         );
                         return;
                     }
                     if (channel) {
-                        channel.send("Update successful!");
+                        channel.send("Update install complete!");
                     }
-                    console.log("Update complete!");
+                    console.log("npm install successful:\n" + stdout);
                     exec(
                         "git shortlog " +
                             local +
@@ -69,6 +111,7 @@ function checkForUpdates(channel = null) {
                                     "Unable to show changelog: ",
                                     err || stderr
                                 );
+                                return;
                             }
                             if (channel) {
                                 channel.send(
@@ -78,15 +121,15 @@ function checkForUpdates(channel = null) {
                             console.log("Changelog:\n" + stdout);
                         }
                     );
-                    if (channel) {
-                        channel.send("Miusik is now restarting..");
-                    }
-                    console.log("Restarting..");
-                    // here we assume we are running on top of a daemon
-                    // which will take care of restarting us
-                    process.exit(0);
                 });
-            }
+                if (channel) {
+                    channel.send("Miusik is now restarting..");
+                }
+                console.log("Restarting..");
+                // here we assume we are running on top of a daemon
+                // which will take care of restarting us
+                process.exit(0);
+            });
         });
     });
 }
