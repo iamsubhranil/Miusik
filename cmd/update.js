@@ -3,7 +3,7 @@ module.exports = {
     description: "Updates the bot",
     commandModifier: null,
     handler: executeUpdate,
-    requiresOnChannel: false,
+    requiresOninfoChannel: false,
 };
 const { exec } = require("child_process");
 
@@ -14,15 +14,15 @@ async function executeUpdate(
     infoChannel,
     logger
 ) {
-    if (channel) {
-        await channel.send("Checking for updates..");
+    if (infoChannel) {
+        await infoChannel.send("Checking for updates..");
     }
     logger.log("Checking for updates..");
 
     exec("git log --pretty=format:'%H' -n 1", async (err, stdout, stderr) => {
         if (err) {
-            if (channel)
-                channel.send(
+            if (infoChannel)
+                infoChannel.send(
                     "Check for updates failed: Could not check current version!"
                 );
             logger.log(
@@ -39,8 +39,8 @@ async function executeUpdate(
         const local = stdout;
         exec("git ls-remote origin HEAD", async (err, stdout, stderr) => {
             if (err) {
-                if (channel)
-                    await channel.send(
+                if (infoChannel)
+                    await infoChannel.send(
                         "Check for updates failed: Could not check remote version!"
                     );
                 logger.log(
@@ -59,21 +59,21 @@ async function executeUpdate(
             if (local === remote) {
                 logger.log("Already up to date!");
 
-                if (channel) {
-                    await channel.send("Miusik is already up to date!");
+                if (infoChannel) {
+                    await infoChannel.send("Miusik is already up to date!");
                 }
                 return;
             }
-            if (channel) {
-                await channel.send("New update found, updating now..");
+            if (infoChannel) {
+                await infoChannel.send("New update found, updating now..");
             }
             logger.log("New update found!");
             logger.log("Updating from remote..");
 
             exec("git pull", async (err, stdout, stderr) => {
                 if (err) {
-                    if (channel) {
-                        channel.send("Update failed!");
+                    if (infoChannel) {
+                        infoChannel.send("Update failed!");
                     }
                     logger.log(
                         "Error updating to the remote: ",
@@ -85,15 +85,15 @@ async function executeUpdate(
                     );
                     return;
                 }
-                if (channel) {
-                    await channel.send("Update fetch successful!");
+                if (infoChannel) {
+                    await infoChannel.send("Update fetch successful!");
                 }
                 logger.log("git pull successful:\n" + stdout);
                 exec("npm install", async (err, stdout, stderr) => {
                     if (err) {
-                        if (channel) {
-                            await channel.send("Update install failed!");
-                            await channel.send(
+                        if (infoChannel) {
+                            await infoChannel.send("Update install failed!");
+                            await infoChannel.send(
                                 "Reverting back to the old version.."
                             );
                         }
@@ -109,12 +109,14 @@ async function executeUpdate(
                             "git reset --hard " + local,
                             async (err, stdout, stderr) => {
                                 if (err) {
-                                    if (channel) {
-                                        await channel.send("Reverting failed!");
-                                        await channel.send(
+                                    if (infoChannel) {
+                                        await infoChannel.send(
+                                            "Reverting failed!"
+                                        );
+                                        await infoChannel.send(
                                             "The bot is now in an inconsistent state!"
                                         );
-                                        await channel.send(
+                                        await infoChannel.send(
                                             "Please inform the owner to manually fix this!"
                                         );
                                     }
@@ -128,11 +130,11 @@ async function executeUpdate(
                                     );
                                     return;
                                 }
-                                if (channel) {
-                                    await channel.send(
+                                if (infoChannel) {
+                                    await infoChannel.send(
                                         "Update rollback complete!"
                                     );
-                                    await channel.send(
+                                    await infoChannel.send(
                                         "Miusik is now restarting.."
                                     );
                                 }
@@ -143,8 +145,8 @@ async function executeUpdate(
                         );
                         return;
                     }
-                    if (channel) {
-                        await channel.send("Update install complete!");
+                    if (infoChannel) {
+                        await infoChannel.send("Update install complete!");
                     }
                     logger.log("npm install successful:\n" + stdout);
                     exec(
@@ -165,15 +167,15 @@ async function executeUpdate(
                                 );
                                 return;
                             }
-                            if (channel) {
-                                await channel.send(
+                            if (infoChannel) {
+                                await infoChannel.send(
                                     "Changelog:\n```" + stdout + "```"
                                 );
                             }
                             logger.log("Changelog:\n" + stdout);
 
-                            if (channel) {
-                                await channel.send(
+                            if (infoChannel) {
+                                await infoChannel.send(
                                     "Miusik is now restarting.."
                                 );
                             }
