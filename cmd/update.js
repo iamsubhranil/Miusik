@@ -14,6 +14,7 @@ async function executeUpdate(
     infoChannel,
     logger
 ) {
+    interaction.reply("Miusik will now check for updates..");
     if (infoChannel) {
         await infoChannel.send("Checking for updates..");
     }
