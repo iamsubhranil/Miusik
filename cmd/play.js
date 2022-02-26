@@ -60,7 +60,7 @@ async function executePlay(
                 song in songCache &&
                 CURRENTDATE - songCache[song].date < CACHE_EXPIRE_MILLS
             ) {
-                song = state.songCache[song].cachedSong;
+                song = songCache[song].cachedSong;
                 interaction.reply("Queued: **" + song.name + "**");
             } else {
                 interaction.reply("Queued: **" + song + "**");
